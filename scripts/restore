@@ -1,0 +1,67 @@
+#!/bin/bash
+
+source "$(dirname $0)/fn"
+
+if [ $# -lt 1 ]; then
+        echo "ERROR: Usage $0 <backup_id> [backup_filename [dest_path]]"
+	echo Backup ID is one of the following:
+        find $CFGDIR -maxdepth 1 -type f -exec basename {} \;
+        exit 1
+fi
+
+bak_id="$1"
+
+if [[ ! -f "$CFGDIR/$bak_id" ]]; then
+        echo ERROR: Backup ID $bak_id does not exists!
+        exit 1
+fi
+
+source "$CFGDIR/$bak_id"
+
+if [ $# -lt 2 ]; then
+	info Backup filename is not specified. Script will now connect to the SCP server to retrieve a list of possible backup files ...
+
+	bak_arc_wc=$bak_arc
+	re='(.*)%[A-Za-z]+(.*)'
+	while [[ $bak_arc_wc =~ $re ]]; do
+		bak_arc_wc=${BASH_REMATCH[1]}*${BASH_REMATCH[2]}
+	done
+	re='(.*)[*]{2}(.*)'
+	while [[ $bak_arc_wc =~ $re ]]; do
+		bak_arc_wc=${BASH_REMATCH[1]}*${BASH_REMATCH[2]}
+	done
+
+	ssh $bak_sftp_options -oStrictHostKeyChecking=no -q -p "$bak_sftp_port" $bak_sftp_user@$bak_sftp_host  <<< ```
+   		echo cd $bak_sftp_path
+   		echo "ls -lah $bak_arc_wc.tar.gz"
+   		echo exit
+		```
+
+	echo ; echo Please choose a filename from the list and re-run as:
+	echo $0 $bak_id filename [dest_path]
+	exit
+fi
+
+bak_file="$2"
+dest_path=${3:-$bak_path}
+
+if [[ ! -d "$dest_path" ]]; then
+	mkdir -p "$dest_path"
+elif [[ ! -z "$(ls -A $dest_path)" ]]; then
+	echo ERROR: Destination directory $dest_path is not empty. Please provide an empty destination directory or provide option -f to force the script to empty the destination directory before un-tar.
+	exit 1
+fi
+
+
+info "Downloading $bak_file from $bak_sftp_user@$bak_sftp_host (port $bak_sftp_port) ..."
+scp $bak_sftp_options -oStrictHostKeyChecking=no -P "$bak_sftp_port" "$bak_sftp_user@$bak_sftp_host:$bak_sftp_path/$bak_file" /tmp/
+
+
+info "Verifying if $bak_file is a valid tar.gz file ..."
+tar Ozxf "/tmp/$bak_file" > /dev/null || { echo "$bak_file is not a valid tar.gz file!" ; exit 1 ; }
+
+tar -pzxf "/tmp/$bak_file" -C "$dest_path"
+
+info "Successfully restore $bak_file into $dest_path"
+
+ls -lah "$dest_path"

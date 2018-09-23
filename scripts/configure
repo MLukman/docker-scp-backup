@@ -1,0 +1,125 @@
+#!/bin/bash
+trap "exit 1" SIGINT
+
+CFGDIR="/etc/backups"
+
+if [[ "$EUID" -ne 0 ]]
+	then echo "ERROR: Please run as root or sudo"
+	exit 1
+fi
+
+if [[ ! -d "$CFGDIR" ]]; then
+	mkdir -p $CFGDIR
+fi
+
+echo "Existing Backup IDs:"
+find $CFGDIR -maxdepth 1 -type f -exec basename {} \;
+echo
+
+while : ; do
+	echo "Please specify Backup ID"
+	read -p '--> ' bak_id
+	if [[ ! -z `echo "$bak_id" | tr -d "[a-zA-Z0-9]"` ]]; then
+		echo "INVALID: Backup ID must be a single alpha-numeric keyword"
+	elif [[ ! -z "$bak_id" ]]; then 
+		echo
+		break
+	fi
+done
+
+configure () {
+	while : ; do
+		echo "Source path"
+		read -p '--> ' -e -i "$bak_path" bak_path
+		if [[ ! -d "$bak_path" ]]; then
+			echo "INVALID: Source path must be an existing directory"
+		else
+			bak_path=$(realpath $bak_path)
+			break
+		fi
+	done
+						      
+	while : ; do
+		bak_arc2=$bak_arc
+		if [[ -z "$bak_arc2" ]]; then
+			bak_arc2="$(basename $bak_path)-%Y%m%d"
+		fi
+		echo "Archive filename pattern (using linux date command pattern) without the extension"
+		read -p '--> ' -e -i "$bak_arc2" bak_arc
+		if [[ ! -z "$bak_arc" ]]; then 
+			break
+		fi
+	done
+	
+	while : ; do
+		while : ; do
+			echo "SFTP host/IP address"
+  			read -p '--> ' -e -i "$bak_sftp_host" bak_sftp_host
+  			if [[ ! -z "$bak_sftp_host" ]]; then 
+  				break
+  			fi
+    		done
+    		
+		while : ; do
+	  		if [[ -z "$bak_sftp_port" ]]; then
+  				bak_sftp_port=22
+  			fi
+  			echo "SFTP port"
+  			read -p '--> ' -e -i "$bak_sftp_port" bak_sftp_port
+  			if [[ ! -z "$bak_sftp_port" ]]; then 
+  				break
+  			fi
+    		done
+    		
+		while : ; do
+			echo "SFTP user"
+  			read -p '--> ' -e -i "$bak_sftp_user" bak_sftp_user
+  			if [[ ! -z "$bak_sftp_user" ]]; then 
+  				break
+  			fi
+		done
+    		
+		echo "Additional SFTP options (optional)"
+		read -p '--> ' -e -i "$bak_sftp_options" bak_sftp_options		
+    		
+		while : ; do
+			echo "Backup destination path within SFTP server"
+			read -p '--> ' -e -i "$bak_sftp_path" bak_sftp_path
+			if [[ ! -z "$bak_sftp_path" ]]; then 
+				break
+			fi
+		done
+
+		echo "Checking SFTP connectivity ..."
+		if ssh $bak_sftp_options -oStrictHostKeyChecking=no -p "$bak_sftp_port" $bak_sftp_user@$bak_sftp_host 1>/dev/null 2>/dev/null <<< ```
+		  echo mkdir -p $bak_sftp_path
+		  echo exit
+		  ```; then
+			echo 'Connection was successful'
+			break
+		else
+			echo 'ERROR: Error connecting or accessing destination path'
+		fi
+	done
+	
+	{
+		echo bak_path="'$bak_path'"
+		echo bak_arc="'$bak_arc'"
+		echo bak_sftp_host="'$bak_sftp_host'"
+		echo bak_sftp_port="'$bak_sftp_port'"
+		echo bak_sftp_user="'$bak_sftp_user'"
+		echo bak_sftp_options="'$bak_sftp_options'"
+		echo bak_sftp_path="'$bak_sftp_path'"
+	} > "$CFGDIR/$bak_id"
+	echo ; echo "Backup ID $bak_id has been saved" ; echo
+}
+ 
+if [[ ! -f "$CFGDIR/$bak_id" ]]; then
+        echo "Creating new backup .."
+        echo
+	configure
+else
+	source "$CFGDIR/$bak_id"
+	configure
+fi
+

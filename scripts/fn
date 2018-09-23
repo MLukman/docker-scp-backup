@@ -1,0 +1,19 @@
+trap "exit" SIGINT
+trap "exit 1" TERM
+export TOP_PID=$$
+
+terminate () {
+    kill -s TERM $TOP_PID
+}
+
+info () {
+        echo "[$(date +'%FT%T')]" "$@"
+}
+
+if [[ "$EUID" -ne 0 ]]; then
+        echo "ERROR: Please run as root or sudo"
+        terminate
+fi
+
+CFGDIR="/etc/backups"
+
