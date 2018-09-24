@@ -8,25 +8,25 @@ if [ "$#" -lt 1 ]; then
 	exit 1
 fi
 
-bak_id="$1"
+BAK_ID="$1"
 
-if [[ ! -f "$CFGDIR/$bak_id" ]]; then
-	echo ERROR: Backup ID $bak_id does not exists!
+if [[ ! -f "$CFGDIR/$BAK_ID" ]]; then
+	echo ERROR: Backup ID $BAK_ID does not exists!
 	exit 1
 fi
 
-source "$CFGDIR/$bak_id"
+source "$CFGDIR/$BAK_ID"
 
-bak_file=$(date "+$bak_arc.tar.gz")
-info "ARCHIVING $bak_file ..."
-tar -czpf $bak_file -C $bak_path .
+BAK_FILE=$(date "+$BAK_ARC.tar.gz")
+info "Archiving $BAK_FILE ..."
+tar -czpf $BAK_FILE -C $BAK_PATH .
  
-info "UPLOADING TO SCP $bak_scp_user@$bak_scp_host:$bak_scp_port ..."
-scp_options="-oStrictHostKeyChecking=no"
-if [[ ! -z "$bak_scp_pkey" ]]; then
-	scp_options="$scp_options -i $bak_scp_pkey"
+info "Uploading to SCP server $BAK_SCP_USER@$BAK_SCP_HOST:$BAK_SCP_PORT ..."
+SCP_OPTIONS="-oStrictHostKeyChecking=no"
+if [[ ! -z "$BAK_SCP_PKEY" ]]; then
+	SCP_OPTIONS="$SCP_OPTIONS -i $BAK_SCP_PKEY"
 fi
-scp $scp_options -P $bak_scp_port $bak_file $bak_scp_user@$bak_scp_host:$bak_scp_path/
+scp $SCP_OPTIONS -P $BAK_SCP_PORT $BAK_FILE $BAK_SCP_USER@$BAK_SCP_HOST:$BAK_SCP_PATH/
 
-rm $bak_file
-
+rm $BAK_FILE
+info Completed.

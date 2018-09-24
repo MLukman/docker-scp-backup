@@ -18,10 +18,10 @@ echo
 
 while : ; do
 	echo "Please specify Backup ID"
-	read -p '--> ' bak_id
-	if [[ ! -z `echo "$bak_id" | tr -d "[a-zA-Z0-9]"` ]]; then
+	read -p '--> ' BAK_ID
+	if [[ ! -z `echo "$BAK_ID" | tr -d "[a-zA-Z0-9]"` ]]; then
 		echo "INVALID: Backup ID must be a single alpha-numeric keyword"
-	elif [[ ! -z "$bak_id" ]]; then 
+	elif [[ ! -z "$BAK_ID" ]]; then 
 		echo
 		break
 	fi
@@ -30,23 +30,23 @@ done
 configure () {
 	while : ; do
 		echo "Source path"
-		read -p '--> ' -e -i "$bak_path" bak_path
-		if [[ ! -d "$bak_path" ]]; then
+		read -p '--> ' -e -i "$BAK_PATH" BAK_PATH
+		if [[ ! -d "$BAK_PATH" ]]; then
 			echo "INVALID: Source path must be an existing directory"
 		else
-			bak_path=$(realpath $bak_path)
+			BAK_PATH=$(realpath $BAK_PATH)
 			break
 		fi
 	done
 	
 	while : ; do
-		bak_arc2=$bak_arc
-		if [[ -z "$bak_arc2" ]]; then
-			bak_arc2="$(basename $bak_path)-%Y%m%d"
+		BAK_ARC2=$BAK_ARC
+		if [[ -z "$BAK_ARC2" ]]; then
+			BAK_ARC2="$(basename $BAK_PATH)-%Y%m%d"
 		fi
 		echo "Archive filename pattern (using linux date command pattern) without the extension"
-		read -p '--> ' -e -i "$bak_arc2" bak_arc
-		if [[ ! -z "$bak_arc" ]]; then 
+		read -p '--> ' -e -i "$BAK_ARC2" BAK_ARC
+		if [[ ! -z "$BAK_ARC" ]]; then 
 			break
 		fi
 	done
@@ -54,49 +54,49 @@ configure () {
 	while : ; do
 		while : ; do
 			echo "SCP host/IP address"
-			read -p '--> ' -e -i "$bak_scp_host" bak_scp_host
-			if [[ ! -z "$bak_scp_host" ]]; then 
+			read -p '--> ' -e -i "$BAK_SCP_HOST" BAK_SCP_HOST
+			if [[ ! -z "$BAK_SCP_HOST" ]]; then 
 				break
 			fi
 		done
 		
 		while : ; do
-	  		if [[ -z "$bak_scp_port" ]]; then
-				bak_scp_port=22
+	  		if [[ -z "$BAK_SCP_PORT" ]]; then
+				BAK_SCP_PORT=22
 			fi
 			echo "SCP port"
-			read -p '--> ' -e -i "$bak_scp_port" bak_scp_port
-			if [[ ! -z "$bak_scp_port" ]]; then 
+			read -p '--> ' -e -i "$BAK_SCP_PORT" BAK_SCP_PORT
+			if [[ ! -z "$BAK_SCP_PORT" ]]; then 
 				break
 			fi
 		done
 
 		while : ; do
 			echo "SCP user"
-			read -p '--> ' -e -i "$bak_scp_user" bak_scp_user
-			if [[ ! -z "$bak_scp_user" ]]; then 
+			read -p '--> ' -e -i "$BAK_SCP_USER" BAK_SCP_USER
+			if [[ ! -z "$BAK_SCP_USER" ]]; then 
 				break
 			fi
 		done
 		
 		echo "Private key (optional - if not provided any backup/restore operations will prompt for password)"
-		read -p '--> ' -e -i "$bak_scp_pkey" bak_scp_pkey		
+		read -p '--> ' -e -i "$BAK_SCP_PKEY" BAK_SCP_PKEY		
 		
 		while : ; do
 			echo "Backup destination path within SCP server"
-			read -p '--> ' -e -i "$bak_scp_path" bak_scp_path
-			if [[ ! -z "$bak_scp_path" ]]; then 
+			read -p '--> ' -e -i "$BAK_SCP_PATH" BAK_SCP_PATH
+			if [[ ! -z "$BAK_SCP_PATH" ]]; then 
 				break
 			fi
 		done
 		
 		echo "Checking SCP connectivity ..."
-		scp_options="-oStrictHostKeyChecking=no -p $bak_scp_port"
-		if [[ ! -z "$bak_scp_pkey" ]]; then
-			scp_options="$scp_options -i $bak_scp_pkey"
+		SCP_OPTIONS="-oStrictHostKeyChecking=no -p $BAK_SCP_PORT"
+		if [[ ! -z "$BAK_SCP_PKEY" ]]; then
+			SCP_OPTIONS="$SCP_OPTIONS -i $BAK_SCP_PKEY"
 		fi
-		if ssh $scp_options $bak_scp_user@$bak_scp_host 1>/dev/null 2>/dev/null <<< ```
-		  echo mkdir -p $bak_scp_path
+		if ssh $SCP_OPTIONS $BAK_SCP_USER@$BAK_SCP_HOST 1>/dev/null 2>/dev/null <<< ```
+		  echo mkdir -p $BAK_SCP_PATH
 		  echo exit
 		  ```; then
 			echo 'Connection was successful'
@@ -107,23 +107,23 @@ configure () {
 	done
 	
 	{
-		echo bak_path="'$bak_path'"
-		echo bak_arc="'$bak_arc'"
-		echo bak_scp_host="'$bak_scp_host'"
-		echo bak_scp_port="'$bak_scp_port'"
-		echo bak_scp_user="'$bak_scp_user'"
-		echo bak_scp_pkey="'$bak_scp_pkey'"
-		echo bak_scp_path="'$bak_scp_path'"
-	} > "$CFGDIR/$bak_id"
-	echo ; echo "Backup ID $bak_id has been saved" ; echo
+		echo BAK_PATH="'$BAK_PATH'"
+		echo BAK_ARC="'$BAK_ARC'"
+		echo BAK_SCP_HOST="'$BAK_SCP_HOST'"
+		echo BAK_SCP_PORT="'$BAK_SCP_PORT'"
+		echo BAK_SCP_USER="'$BAK_SCP_USER'"
+		echo BAK_SCP_PKEY="'$BAK_SCP_PKEY'"
+		echo BAK_SCP_PATH="'$BAK_SCP_PATH'"
+	} > "$CFGDIR/$BAK_ID"
+	echo ; echo "Backup ID $BAK_ID has been saved" ; echo
 }
  
-if [[ ! -f "$CFGDIR/$bak_id" ]]; then
-        echo "Creating new backup .."
-        echo
+if [[ ! -f "$CFGDIR/$BAK_ID" ]]; then
+	echo "Creating new backup .."
+	echo
 	configure
 else
-	source "$CFGDIR/$bak_id"
+	source "$CFGDIR/$BAK_ID"
 	configure
 fi
 

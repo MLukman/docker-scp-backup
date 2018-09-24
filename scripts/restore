@@ -2,6 +2,26 @@
 
 source "$(dirname $0)/fn"
 
+FORCE=0
+
+if [ "$#" -gt 0 ]; then
+   while getopts :f opt; do
+      case $opt in
+         f)
+            FORCE=1
+            ;;
+         \?)
+            echo "Invalid option: -$OPTARG" >&2
+            exit 1
+            ;;
+         :)
+            echo "Option -$OPTARG requires an argument." >&2
+            exit 1
+      esac
+   done
+   shift $((OPTIND -1))
+fi
+
 if [ $# -lt 1 ]; then
         echo "ERROR: Usage $0 <backup_id> [backup_filename [dest_path]]"
 	echo Backup ID is one of the following:
@@ -9,66 +29,68 @@ if [ $# -lt 1 ]; then
         exit 1
 fi
 
-bak_id="$1"
+BAK_ID="$1"
 
-if [[ ! -f "$CFGDIR/$bak_id" ]]; then
-        echo ERROR: Backup ID $bak_id does not exists!
+if [[ ! -f "$CFGDIR/$BAK_ID" ]]; then
+        echo ERROR: Backup ID $BAK_ID does not exists!
         exit 1
 fi
 
-source "$CFGDIR/$bak_id"
+source "$CFGDIR/$BAK_ID"
 
-scp_options="-oStrictHostKeyChecking=no"
-if [[ ! -z "$bak_scp_pkey" ]]; then
-	scp_options="$scp_options -i $bak_scp_pkey"
+SCP_OPTIONS="-oStrictHostKeyChecking=no"
+if [[ ! -z "$BAK_SCP_PKEY" ]]; then
+	SCP_OPTIONS="$SCP_OPTIONS -i $BAK_SCP_PKEY"
 fi
 
 if [ $# -lt 2 ]; then
 	info Backup filename is not specified. Script will now connect to the SCP server to retrieve a list of possible backup files ...
 
-	bak_arc_wc=$bak_arc
+	BAK_ARC_WC=$BAK_ARC
 	re='(.*)%[A-Za-z]+(.*)'
-	while [[ $bak_arc_wc =~ $re ]]; do
-		bak_arc_wc=${BASH_REMATCH[1]}*${BASH_REMATCH[2]}
+	while [[ $BAK_ARC_WC =~ $re ]]; do
+		BAK_ARC_WC=${BASH_REMATCH[1]}*${BASH_REMATCH[2]}
 	done
 	re='(.*)[*]{2}(.*)'
-	while [[ $bak_arc_wc =~ $re ]]; do
-		bak_arc_wc=${BASH_REMATCH[1]}*${BASH_REMATCH[2]}
+	while [[ $BAK_ARC_WC =~ $re ]]; do
+		BAK_ARC_WC=${BASH_REMATCH[1]}*${BASH_REMATCH[2]}
 	done
 
 	echo
-	ssh $scp_options -T -p "$bak_scp_port" $bak_scp_user@$bak_scp_host  <<< ```
-   		echo cd $bak_scp_path
-   		echo "ls -lah $bak_arc_wc.tar.gz"
+	ssh $SCP_OPTIONS -T -p "$BAK_SCP_PORT" $BAK_SCP_USER@$BAK_SCP_HOST  <<< ```
+   		echo cd $BAK_SCP_PATH
+   		echo "ls -lah $BAK_ARC_WC.tar.gz"
    		echo exit
 		```
 
 	echo ; echo Please choose a filename from the list and re-run as:
-	echo $0 $bak_id filename [dest_path]
+	echo $0 $BAK_ID filename [dest_path]
 	exit
 fi
 
-bak_file="$2"
-dest_path=${3:-$bak_path}
+BAK_FILE="$2"
+DEST_PATH=${3:-$BAK_PATH}
 
-if [[ ! -d "$dest_path" ]]; then
-	mkdir -p "$dest_path"
-elif [[ ! -z "$(ls -A $dest_path)" ]]; then
-	echo ERROR: Destination directory $dest_path is not empty. Please provide an empty destination directory or provide option -f to force the script to empty the destination directory before un-tar.
+if [[ ! -d "$DEST_PATH" ]]; then
+	mkdir -p "$DEST_PATH"
+elif [[ ! -z "$(ls -A $DEST_PATH)" ]] && [ "$FORCE" -eq 0 ]; then
+	echo ERROR: Destination directory $DEST_PATH is not empty. Please provide an empty destination directory or provide option -f to force the script to empty the destination directory before un-tar.
 	exit 1
 fi
 
+info "Downloading $BAK_FILE from $BAK_SCP_USER@$BAK_SCP_HOST:$BAK_SCP_PORT ..."
+scp $SCP_OPTIONS -P "$BAK_SCP_PORT" "$BAK_SCP_USER@$BAK_SCP_HOST:$BAK_SCP_PATH/$BAK_FILE" /tmp/
 
-info "Downloading $bak_file from $bak_scp_user@$bak_scp_host:$bak_scp_port ..."
-scp $scp_options -P "$bak_scp_port" "$bak_scp_user@$bak_scp_host:$bak_scp_path/$bak_file" /tmp/
+info "Verifying if $BAK_FILE is a valid tar.gz file ..."
+tar Ozxf "/tmp/$BAK_FILE" > /dev/null || { echo "$BAK_FILE is not a valid tar.gz file!" ; exit 1 ; }
 
+if [[ ! -z "$(ls -A $DEST_PATH)" ]]; then
+	info Emptying $DEST_PATH ...
+	rm -fr $DEST_PATH/*
+fi
 
-info "Verifying if $bak_file is a valid tar.gz file ..."
-tar Ozxf "/tmp/$bak_file" > /dev/null || { echo "$bak_file is not a valid tar.gz file!" ; exit 1 ; }
+info "Restoring $BAK_FILE into $DEST_PATH ..."
+tar -pzxf "/tmp/$BAK_FILE" -C "$DEST_PATH"
 
-info "Restoring $bak_file into $dest_path ..."
-tar -pzxf "/tmp/$bak_file" -C "$dest_path"
-
-info "Success! Listing $dest_path:"
-
-ls -lah "$dest_path"
+info "Completed. Listing $DEST_PATH:"
+ls -lah "$DEST_PATH"
