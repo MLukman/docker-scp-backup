@@ -38,7 +38,7 @@ configure () {
 			break
 		fi
 	done
-						      
+	
 	while : ; do
 		bak_arc2=$bak_arc
 		if [[ -z "$bak_arc2" ]]; then
@@ -53,46 +53,50 @@ configure () {
 	
 	while : ; do
 		while : ; do
-			echo "SFTP host/IP address"
-  			read -p '--> ' -e -i "$bak_sftp_host" bak_sftp_host
-  			if [[ ! -z "$bak_sftp_host" ]]; then 
-  				break
-  			fi
-    		done
-    		
-		while : ; do
-	  		if [[ -z "$bak_sftp_port" ]]; then
-  				bak_sftp_port=22
-  			fi
-  			echo "SFTP port"
-  			read -p '--> ' -e -i "$bak_sftp_port" bak_sftp_port
-  			if [[ ! -z "$bak_sftp_port" ]]; then 
-  				break
-  			fi
-    		done
-    		
-		while : ; do
-			echo "SFTP user"
-  			read -p '--> ' -e -i "$bak_sftp_user" bak_sftp_user
-  			if [[ ! -z "$bak_sftp_user" ]]; then 
-  				break
-  			fi
+			echo "SCP host/IP address"
+			read -p '--> ' -e -i "$bak_scp_host" bak_scp_host
+			if [[ ! -z "$bak_scp_host" ]]; then 
+				break
+			fi
 		done
-    		
-		echo "Additional SFTP options (optional)"
-		read -p '--> ' -e -i "$bak_sftp_options" bak_sftp_options		
-    		
+		
 		while : ; do
-			echo "Backup destination path within SFTP server"
-			read -p '--> ' -e -i "$bak_sftp_path" bak_sftp_path
-			if [[ ! -z "$bak_sftp_path" ]]; then 
+	  		if [[ -z "$bak_scp_port" ]]; then
+				bak_scp_port=22
+			fi
+			echo "SCP port"
+			read -p '--> ' -e -i "$bak_scp_port" bak_scp_port
+			if [[ ! -z "$bak_scp_port" ]]; then 
 				break
 			fi
 		done
 
-		echo "Checking SFTP connectivity ..."
-		if ssh $bak_sftp_options -oStrictHostKeyChecking=no -p "$bak_sftp_port" $bak_sftp_user@$bak_sftp_host 1>/dev/null 2>/dev/null <<< ```
-		  echo mkdir -p $bak_sftp_path
+		while : ; do
+			echo "SCP user"
+			read -p '--> ' -e -i "$bak_scp_user" bak_scp_user
+			if [[ ! -z "$bak_scp_user" ]]; then 
+				break
+			fi
+		done
+		
+		echo "Private key (optional - if not provided any backup/restore operations will prompt for password)"
+		read -p '--> ' -e -i "$bak_scp_pkey" bak_scp_pkey		
+		
+		while : ; do
+			echo "Backup destination path within SCP server"
+			read -p '--> ' -e -i "$bak_scp_path" bak_scp_path
+			if [[ ! -z "$bak_scp_path" ]]; then 
+				break
+			fi
+		done
+		
+		echo "Checking SCP connectivity ..."
+		scp_options="-oStrictHostKeyChecking=no -p $bak_scp_port"
+		if [[ ! -z "$bak_scp_pkey" ]]; then
+			scp_options="$scp_options -i $bak_scp_pkey"
+		fi
+		if ssh $scp_options $bak_scp_user@$bak_scp_host 1>/dev/null 2>/dev/null <<< ```
+		  echo mkdir -p $bak_scp_path
 		  echo exit
 		  ```; then
 			echo 'Connection was successful'
@@ -105,11 +109,11 @@ configure () {
 	{
 		echo bak_path="'$bak_path'"
 		echo bak_arc="'$bak_arc'"
-		echo bak_sftp_host="'$bak_sftp_host'"
-		echo bak_sftp_port="'$bak_sftp_port'"
-		echo bak_sftp_user="'$bak_sftp_user'"
-		echo bak_sftp_options="'$bak_sftp_options'"
-		echo bak_sftp_path="'$bak_sftp_path'"
+		echo bak_scp_host="'$bak_scp_host'"
+		echo bak_scp_port="'$bak_scp_port'"
+		echo bak_scp_user="'$bak_scp_user'"
+		echo bak_scp_pkey="'$bak_scp_pkey'"
+		echo bak_scp_path="'$bak_scp_path'"
 	} > "$CFGDIR/$bak_id"
 	echo ; echo "Backup ID $bak_id has been saved" ; echo
 }

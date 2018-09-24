@@ -21,12 +21,12 @@ bak_file=$(date "+$bak_arc.tar.gz")
 info "ARCHIVING $bak_file ..."
 tar -czpf $bak_file -C $bak_path .
  
-info "UPLOADING TO SFTP $bak_sftp_host ..."
-#sftp $bak_sftp_options -oStrictHostKeyChecking=no -P "$bak_sftp_port" $bak_sftp_user@$bak_sftp_host 1>/dev/null 2>/dev/null <<< ```
-#	echo put $bak_file $bak_sftp_path/
-#	echo exit 
-#```
-scp $bak_sftp_options -oStrictHostKeyChecking=no -P "$bak_sftp_port" $bak_file $bak_sftp_user@$bak_sftp_host:$bak_sftp_path/
+info "UPLOADING TO SCP $bak_scp_user@$bak_scp_host:$bak_scp_port ..."
+scp_options="-oStrictHostKeyChecking=no"
+if [[ ! -z "$bak_scp_pkey" ]]; then
+	scp_options="$scp_options -i $bak_scp_pkey"
+fi
+scp $scp_options -P $bak_scp_port $bak_file $bak_scp_user@$bak_scp_host:$bak_scp_path/
 
 rm $bak_file
 
